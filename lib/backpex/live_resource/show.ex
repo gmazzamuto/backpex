@@ -26,12 +26,6 @@ defmodule Backpex.LiveResource.Show do
     noreply(socket)
   end
 
-  def handle_info({"backpex:updated", _item}, socket) do
-    socket
-    |> assign_item()
-    |> noreply()
-  end
-
   def handle_info(_event, socket) do
     noreply(socket)
   end
@@ -44,7 +38,7 @@ defmodule Backpex.LiveResource.Show do
     Backpex.HTML.Resource.resource_show(assigns)
   end
 
-  defp assign_item(socket) do
+  def assign_item(socket) do
     %{live_resource: live_resource, fields: fields, params: params} = socket.assigns
     backpex_id = Map.fetch!(params, "backpex_id")
     primary_value = URI.decode(backpex_id)

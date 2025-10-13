@@ -361,22 +361,22 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp update_item(socket, item) do
-    %{live_resource: live_resource, fields: fields, items: items} = socket.assigns
+    %{live_resource: live_resource, fields: fields, items: items, item_ids: item_ids} = socket.assigns
 
     primary_value = LiveResource.primary_value(item, live_resource)
-    primary_value_str = to_string(primary_value)
-    {:ok, updated_item} = Resource.get(primary_value, fields, socket.assigns, live_resource)
+    index = Enum.find_index(item_ids, &(&1 == primary_value))
 
-    updated_items =
-      Enum.map(items, fn current_item ->
-        if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
+    if index do
+      items =
+        List.update_at(items, index, fn _ ->
+          {:ok, updated_item} = Resource.get(primary_value, fields, socket.assigns, live_resource)
           updated_item
-        else
-          current_item
-        end
-      end)
+        end)
 
-    assign(socket, :items, updated_items)
+      assign(socket, items: items)
+    else
+      socket
+    end
   end
 
   defp assign_metrics_visibility(socket, session) do
@@ -617,6 +617,6 @@ defmodule Backpex.LiveResource.Index do
       |> LiveResource.build_criteria()
       |> Resource.list(fields, assigns, live_resource)
 
-    assign(socket, :items, items)
+    assign(socket, items: items, item_ids: Enum.map(items, &Map.get(&1, live_resource.config(:primary_key))))
   end
 end
