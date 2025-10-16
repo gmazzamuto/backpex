@@ -19,20 +19,20 @@ defmodule Backpex.Resource do
     search: {"hello", [:title, :description]}
   ]
   """
-  def list(criteria, assigns, live_resource) do
+  def list(criteria, %{live_resource: live_resource} = assigns) do
     adapter = live_resource.config(:adapter)
 
-    adapter.list(criteria, assigns, live_resource)
+    adapter.list(criteria, assigns)
   end
 
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  def count(criteria, assigns, live_resource) do
+  def count(criteria, %{live_resource: live_resource} = assigns) do
     adapter = live_resource.config(:adapter)
 
-    adapter.count(criteria, assigns, live_resource)
+    adapter.count(criteria, assigns)
   end
 
   @doc """
@@ -46,17 +46,17 @@ defmodule Backpex.Resource do
   * `assigns` (map): The current assigns of the socket.
   * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def get(primary_value, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
+  def get(primary_value, assigns) do
+    adapter = assigns.live_resource.config(:adapter)
 
-    adapter.get(primary_value, assigns, live_resource)
+    adapter.get(primary_value, assigns)
   end
 
   @doc """
   Same as `get/4` but returns the result or raises an error.
   """
-  def get!(primary_value, assigns, live_resource) do
-    case get(primary_value, assigns, live_resource) do
+  def get!(primary_value, assigns) do
+    case get(primary_value, assigns) do
       {:ok, nil} -> raise Backpex.NoResultsError
       {:ok, result} -> result
       {:error, _error} -> raise Backpex.NoResultsError
@@ -129,7 +129,7 @@ defmodule Backpex.Resource do
   defp maybe_reload({:ok, item}, changeset, assigns, live_resource) do
     if needs_reload?(live_resource.config(:adapter_config)[:schema], changeset) do
       primary_value = Map.get(item, live_resource.config(:primary_key))
-      Backpex.Resource.get(primary_value, assigns, live_resource)
+      Backpex.Resource.get(primary_value, assigns)
     else
       {:ok, item}
     end
