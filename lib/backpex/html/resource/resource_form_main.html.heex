@@ -1,8 +1,8 @@
 <.main_container>
-  <.live_component
-    module={Backpex.FormComponent}
-    id={:edit}
-    live_resource={@live_resource}
-    {Map.drop(assigns, [:socket, :flash])}
-  />
+  {live_component(
+    assign(Map.drop(assigns, [:socket, :flash]),
+      module: Backpex.FormComponent,
+      id: :edit
+    )
+  )}
 </.main_container>

@@ -30,7 +30,9 @@ defmodule Backpex.LiveResource.Form do
   end
 
   def render(assigns) do
-    Backpex.HTML.Resource.resource_form(assigns)
+    assigns
+    |> assign(inner_block: [%{inner_block: Backpex.HTML.Resource.resource_form(assigns)}])
+    |> Backpex.HTML.Layout.layout()
   end
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode

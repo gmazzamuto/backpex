@@ -55,7 +55,7 @@
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
         <div class={[align(field_options), index_column_class(assigns, field_options)]}>
-          <.resource_field name={name} item={item} {assigns} />
+          {resource_field(assign(assigns, name: name, item: item))}
         </div>
       </td>
       <td class={[
