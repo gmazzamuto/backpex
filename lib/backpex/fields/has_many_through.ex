@@ -532,9 +532,11 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp select_relational_field(assigns) do
+    assigns = assign_new(assigns, :hide_label, fn -> false end)
+
     ~H"""
     <Layout.field_container>
-      <:label>
+      <:label :if={not @hide_label}>
         <Layout.input_label for={@form[@owner_key]} text={@label} />
       </:label>
       <BackpexForm.input

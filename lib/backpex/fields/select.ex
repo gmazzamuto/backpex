@@ -65,11 +65,12 @@ defmodule Backpex.Fields.Select do
       assigns
       |> assign(:options, options)
       |> assign_prompt(assigns.field_options)
+      |> assign_new(:hide_label, fn -> false end)
 
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input

@@ -130,12 +130,13 @@ defmodule Backpex.Fields.BelongsTo do
       assigns
       |> assign(:options, options)
       |> assign(:owner_key, owner_key)
+      |> assign_new(:hide_label, fn -> false end)
       |> assign_prompt(field_options)
 
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label for={@form[@owner_key]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
