@@ -89,10 +89,12 @@ defmodule Backpex.Fields.Currency do
 
   @impl Backpex.Field
   def render_form(assigns) do
+    assigns = assign_new(assigns, :hide_label, fn -> false end)
+
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.currency_input
