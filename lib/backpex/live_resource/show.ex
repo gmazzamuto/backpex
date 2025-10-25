@@ -26,12 +26,6 @@ defmodule Backpex.LiveResource.Show do
     noreply(socket)
   end
 
-  def handle_info({"backpex:updated", _item}, socket) do
-    socket
-    |> assign_item()
-    |> noreply()
-  end
-
   def handle_info(_event, socket) do
     noreply(socket)
   end
@@ -46,11 +40,17 @@ defmodule Backpex.LiveResource.Show do
     |> Backpex.HTML.Layout.layout()
   end
 
-  defp assign_item(socket) do
-    %{live_resource: live_resource, fields: fields, params: params} = socket.assigns
+  def assign_item(socket) do
+    %{params: params} = socket.assigns
     backpex_id = Map.fetch!(params, "backpex_id")
     primary_value = URI.decode(backpex_id)
-    item = Resource.get!(primary_value, fields, socket.assigns, live_resource)
+    item = Resource.get!(primary_value, socket.assigns)
+
+    assign_item(socket, item)
+  end
+
+  def assign_item(socket, item) do
+    %{live_resource: live_resource, params: params} = socket.assigns
 
     if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 

@@ -306,6 +306,7 @@ defmodule Backpex.LiveResource do
                      index_row_class: 4
 
       live_resource = __MODULE__
+      primary_key = @resource_opts[:primary_key]
 
       for action <- ~w(Index Form Show)a do
         # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
@@ -321,6 +322,21 @@ defmodule Backpex.LiveResource do
           def mount(params, session, socket), do: @action_module.mount(params, session, socket, unquote(live_resource))
           def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
           def render(assigns), do: @action_module.render(assigns)
+
+          case action do
+            :Show ->
+              # will match only if the updated item is the one currently shown
+              def handle_info(
+                    {"backpex:updated", %{unquote(primary_key) => id} = item},
+                    %{assigns: %{item: %{unquote(primary_key) => id}}} = socket
+                  ) do
+                {:noreply, @action_module.assign_item(socket, item)}
+              end
+
+            _action ->
+              nil
+          end
+
           def handle_info(msg, socket), do: @action_module.handle_info(msg, socket)
           def handle_event(event, params, socket), do: @action_module.handle_event(event, params, socket)
         end

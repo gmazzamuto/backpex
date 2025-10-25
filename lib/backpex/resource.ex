@@ -19,20 +19,20 @@ defmodule Backpex.Resource do
     search: {"hello", [:title, :description]}
   ]
   """
-  def list(criteria, fields, assigns, live_resource) do
+  def list(criteria, %{live_resource: live_resource} = assigns) do
     adapter = live_resource.config(:adapter)
 
-    adapter.list(criteria, fields, assigns, live_resource)
+    adapter.list(criteria, assigns)
   end
 
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  def count(criteria, fields, assigns, live_resource) do
+  def count(criteria, %{live_resource: live_resource} = assigns) do
     adapter = live_resource.config(:adapter)
 
-    adapter.count(criteria, fields, assigns, live_resource)
+    adapter.count(criteria, assigns)
   end
 
   @doc """
@@ -46,17 +46,17 @@ defmodule Backpex.Resource do
   * `assigns` (map): The current assigns of the socket.
   * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def get(primary_value, fields, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
+  def get(primary_value, assigns) do
+    adapter = assigns.live_resource.config(:adapter)
 
-    adapter.get(primary_value, fields, assigns, live_resource)
+    adapter.get(primary_value, assigns)
   end
 
   @doc """
   Same as `get/4` but returns the result or raises an error.
   """
-  def get!(primary_value, fields, assigns, live_resource) do
-    case get(primary_value, fields, assigns, live_resource) do
+  def get!(primary_value, assigns) do
+    case get(primary_value, assigns) do
       {:ok, nil} -> raise Backpex.NoResultsError
       {:ok, result} -> result
       {:error, _error} -> raise Backpex.NoResultsError
@@ -114,13 +114,42 @@ defmodule Backpex.Resource do
 
     adapter = live_resource.config(:adapter)
 
-    item
-    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, action))
-    |> then(fn changeset ->
+    changeset = change(item, attrs, fields, assigns, live_resource, Keyword.put(opts, :action, action))
+
+    adapter_result =
       if action == :insert, do: adapter.insert(changeset, live_resource), else: adapter.update(changeset, live_resource)
-    end)
+
+    adapter_result
+    |> maybe_reload(changeset, assigns, live_resource)
     |> after_save(after_save_fun)
     |> broadcast(event_name, live_resource)
+  end
+
+  # Reload if there are virtual fields or associations
+  defp maybe_reload({:ok, item}, changeset, assigns, live_resource) do
+    if needs_reload?(live_resource.config(:adapter_config)[:schema], changeset) do
+      primary_value = Map.get(item, live_resource.config(:primary_key))
+      Backpex.Resource.get(primary_value, assigns)
+    else
+      {:ok, item}
+    end
+  end
+
+  defp needs_reload?(schema, changeset) do
+    if schema.__schema__(:virtual_fields) == [] do
+      associations = schema.__schema__(:associations) |> Enum.map(&schema.__schema__(:association, &1))
+      keys = Enum.map(associations, &get_keys_for_reload/1)
+      Map.keys(changeset.changes) |> Enum.any?(&(&1 in keys))
+    else
+      true
+    end
+  end
+
+  defp get_keys_for_reload(assoc) do
+    case assoc do
+      %Ecto.Association.BelongsTo{owner_key: owner_key} -> owner_key
+      %{field: field} -> field
+    end
   end
 
   @doc """
