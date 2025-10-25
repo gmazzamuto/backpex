@@ -27,20 +27,19 @@ defmodule Backpex.Adapter do
 
   Should return `nil` if no result was found.
   """
-  @callback get(primary_value :: term(), fields :: list(), assigns :: map(), live_resource :: module()) ::
+  @callback get(primary_value :: term(), assigns :: map(), live_resource :: module()) ::
               {:ok, struct() | nil} | {:error, term()}
 
   @doc """
   Returns a list of items by given criteria.
   """
-  @callback list(criteria :: keyword(), fields :: list(), assigns :: map(), live_resource :: module()) :: {:ok, list()}
+  @callback list(criteria :: keyword(), assigns :: map(), live_resource :: module()) :: {:ok, list()}
 
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  @callback count(criteria :: keyword(), fields :: list(), assigns :: map(), live_resource :: module()) ::
-              {:ok, non_neg_integer()}
+  @callback count(criteria :: keyword(), assigns :: map(), live_resource :: module()) :: {:ok, non_neg_integer()}
 
   @doc """
   Inserts given item.

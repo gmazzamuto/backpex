@@ -423,7 +423,8 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp apply_index(socket) do
-    %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
+    %{live_resource: live_resource, params: params} = socket.assigns
+    fields = live_resource.fields()
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
@@ -441,7 +442,7 @@ defmodule Backpex.LiveResource.Index do
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
-    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
 
     per_page =
       params
@@ -537,7 +538,8 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp refresh_items(socket) do
-    %{live_resource: live_resource, params: params, query_options: query_options, fields: fields} = socket.assigns
+    %{live_resource: live_resource, params: params, query_options: query_options} = socket.assigns
+    fields = live_resource.fields()
 
     schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
@@ -548,7 +550,7 @@ defmodule Backpex.LiveResource.Index do
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
-    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
     new_query_options = Map.put(query_options, :page, LiveResource.validate_page(page, total_pages))
@@ -581,7 +583,7 @@ defmodule Backpex.LiveResource.Index do
           filters: LiveResource.filter_options(query_options, filters)
         ]
 
-        query = EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)
+        query = EctoAdapter.list_query(criteria, socket.assigns, live_resource)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
@@ -604,12 +606,12 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_items(socket) do
-    %{assigns: %{live_resource: live_resource, fields: fields} = assigns} = socket
+    %{assigns: %{live_resource: live_resource} = assigns} = socket
 
     {:ok, items} =
       assigns
       |> LiveResource.build_criteria()
-      |> Resource.list(fields, assigns, live_resource)
+      |> Resource.list(assigns, live_resource)
 
     assign(socket, items: items, item_ids: Enum.map(items, &Map.get(&1, live_resource.config(:primary_key))))
   end
