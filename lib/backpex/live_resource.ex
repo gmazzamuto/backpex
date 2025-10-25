@@ -330,10 +330,10 @@ defmodule Backpex.LiveResource do
                     {"backpex:updated", %{unquote(primary_key) => id} = item},
                     %{assigns: %{item: %{unquote(primary_key) => id}}} = socket
                   ) do
-                {:noreply, @action_module.assign_item(socket)}
+                {:noreply, @action_module.assign_item(socket, item)}
               end
 
-            _ ->
+            _action ->
               nil
           end
 

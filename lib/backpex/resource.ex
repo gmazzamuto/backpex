@@ -114,13 +114,43 @@ defmodule Backpex.Resource do
 
     adapter = live_resource.config(:adapter)
 
-    item
-    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, action))
-    |> then(fn changeset ->
+    changeset = change(item, attrs, fields, assigns, live_resource, Keyword.put(opts, :action, action))
+
+    adapter_result =
       if action == :insert, do: adapter.insert(changeset, live_resource), else: adapter.update(changeset, live_resource)
-    end)
+
+    adapter_result
+    |> maybe_reload(changeset, assigns, live_resource)
     |> after_save(after_save_fun)
     |> broadcast(event_name, live_resource)
+  end
+
+  # Reload if there are virtual fields or associations
+  defp maybe_reload({:ok, item}, changeset, assigns, live_resource) do
+    if needs_reload?(live_resource.config(:adapter_config)[:schema], changeset) do
+      primary_value = Map.get(item, live_resource.config(:primary_key))
+      # must use `live_resource.fields()` because `fields` may have fewer items
+      Backpex.Resource.get(primary_value, live_resource.fields(), assigns, live_resource)
+    else
+      {:ok, item}
+    end
+  end
+
+  defp needs_reload?(schema, changeset) do
+    if schema.__schema__(:virtual_fields) == [] do
+      associations = schema.__schema__(:associations) |> Enum.map(&schema.__schema__(:association, &1))
+      keys = Enum.map(associations, &get_keys_for_reload/1)
+      Map.keys(changeset.changes) |> Enum.any?(&(&1 in keys))
+    else
+      true
+    end
+  end
+
+  defp get_keys_for_reload(assoc) do
+    case assoc do
+      %Ecto.Association.BelongsTo{owner_key: owner_key} -> owner_key
+      %{field: field} -> field
+    end
   end
 
   @doc """

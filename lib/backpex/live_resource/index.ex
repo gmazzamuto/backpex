@@ -361,19 +361,13 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp update_item(socket, item) do
-    %{live_resource: live_resource, fields: fields, items: items, item_ids: item_ids} = socket.assigns
+    %{live_resource: live_resource, items: items, item_ids: item_ids} = socket.assigns
 
     primary_value = LiveResource.primary_value(item, live_resource)
     index = Enum.find_index(item_ids, &(&1 == primary_value))
 
     if index do
-      items =
-        List.update_at(items, index, fn _ ->
-          {:ok, updated_item} = Resource.get(primary_value, fields, socket.assigns, live_resource)
-          updated_item
-        end)
-
-      assign(socket, items: items)
+      assign(socket, items: List.update_at(items, index, fn _i -> item end))
     else
       socket
     end

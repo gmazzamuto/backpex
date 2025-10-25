@@ -44,6 +44,12 @@ defmodule Backpex.LiveResource.Show do
     primary_value = URI.decode(backpex_id)
     item = Resource.get!(primary_value, fields, socket.assigns, live_resource)
 
+    assign_item(socket, item)
+  end
+
+  def assign_item(socket, item) do
+    %{live_resource: live_resource, params: params} = socket.assigns
+
     if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
     socket
