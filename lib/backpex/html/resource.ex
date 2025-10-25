@@ -98,23 +98,19 @@ defmodule Backpex.HTML.Resource do
       not live_resource.can?(assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, assigns)
 
-    assigns =
-      assigns
-      |> assign(:field, field)
-      |> assign(:field_options, field_options)
-      |> assign(:value, Map.get(item, name))
-      |> assign(:type, :index)
-      |> assign(:readonly, readonly)
-      |> assign(:primary_key, Map.get(item, live_resource.config(:primary_key)))
+    primary_key = Map.get(item, live_resource.config(:primary_key))
 
-    ~H"""
-    <.live_component
-      id={"resource_#{@name}_#{@primary_key}"}
-      module={@field_options.module}
-      type={@type}
-      {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
-    />
-    """
+    assigns
+    |> assign(:field, field)
+    |> assign(:field_options, field_options)
+    |> assign(:value, Map.get(item, name))
+    |> assign(:type, :index)
+    |> assign(:readonly, readonly)
+    |> assign(:primary_key, primary_key)
+    |> assign(:id, "resource_#{name}_#{primary_key}")
+    |> assign(:module, field_options.module)
+    |> Map.drop([:socket, :flash, :myself, :uploads])
+    |> live_component()
   end
 
   @doc """
@@ -168,22 +164,16 @@ defmodule Backpex.HTML.Resource do
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
-    assigns =
-      assigns
-      |> assign(:field, field)
-      |> assign(:field_options, field_options)
-      |> assign(:type, :form)
-      |> assign(:readonly, Backpex.Field.readonly?(field_options, assigns))
-
-    ~H"""
-    <.live_component
-      id={"resource_#{@form[@name].id}"}
-      module={@field_options.module}
-      lv_uploads={assigns[:uploads]}
-      type={@type}
-      {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
-    />
-    """
+    assigns
+    |> assign(:field, field)
+    |> assign(:field_options, field_options)
+    |> assign(:type, :form)
+    |> assign(:readonly, Backpex.Field.readonly?(field_options, assigns))
+    |> assign(:id, "resource_#{@form[@name].id}")
+    |> assign(:module, field_options.module)
+    |> assign(:lv_uploads, assigns.uploads)
+    |> Map.drop([:socket, :flash, :myself, :uploads])
+    |> live_component()
   end
 
   @doc """
@@ -247,7 +237,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
-      <.filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
+      {filter_forms(assigns)}
     </.filter_dropdown>
     <.filter_badge
       :for={badge <- @filter_badges}
@@ -881,20 +871,19 @@ defmodule Backpex.HTML.Resource do
   def resource_filters(assigns) do
     ~H"""
     <div class="mb-4 flex flex-wrap gap-4">
-      <.metric_toggle {assigns} />
+      {metric_toggle(assigns)}
       <.index_search_form
         searchable_fields={@searchable_fields}
         full_text_search={@live_resource.config(:full_text_search)}
         value={Map.get(@query_options, :search, "")}
         placeholder={@search_placeholder}
       />
-      <.filter
-        :if={LiveResource.active_filters(assigns) != []}
-        live_resource={@live_resource}
-        filter_options={LiveResource.get_filter_options(@query_options)}
-        filters={LiveResource.active_filters(assigns)}
-        {assigns}
-      />
+      {filter(
+        assign(assigns,
+          filter_options: LiveResource.get_filter_options(@query_options),
+          filters: LiveResource.active_filters(assigns)
+        )
+      )}
     </div>
     """
   end
@@ -1061,7 +1050,7 @@ defmodule Backpex.HTML.Resource do
 
   def show_panel(assigns) do
     ~H"""
-    <div class={@class}>
+    <div :if={@panel_fields} class={@class}>
       <p :if={@label != nil} class="text-lg font-semibold">
         {@label}
       </p>
@@ -1074,7 +1063,7 @@ defmodule Backpex.HTML.Resource do
                 <:label>
                   <.input_label as="span" text={label} />
                 </:label>
-                <.resource_field name={name} {assigns} />
+                {resource_field(assign(assigns, name: name))}
               </.field_container>
             </div>
           </div>
