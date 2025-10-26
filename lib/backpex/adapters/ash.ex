@@ -43,6 +43,7 @@ if Code.ensure_loaded?(Ash) do
     """
 
     use Backpex.Adapter, config_schema: @config_schema
+    import Ash.Expr
     alias Ash.Resource
     require Logger
     require Ash.Query
@@ -93,20 +94,10 @@ if Code.ensure_loaded?(Ash) do
           _default -> []
         end
 
-      filter_options =
-        case criteria[:search] do
-          {search_string, searchable_fields} ->
-            search_string = "%#{search_string}%"
-            [or: Enum.map(searchable_fields, fn {k, _v} -> Keyword.new([{k, [ilike: search_string]}]) end)]
-
-          _default ->
-            []
-        end
-
       resource
       |> Ash.Query.for_read(action, %{}, read_options)
       |> Ash.Query.sort(sort_options)
-      |> Ash.Query.filter_input(filter_options)
+      |> apply_search(criteria[:search], live_resource)
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
@@ -129,6 +120,31 @@ if Code.ensure_loaded?(Ash) do
         end
 
       [actor: actor]
+    end
+
+    defp apply_search(query, {"", _searchable_fields}, _live_resource), do: query
+
+    defp apply_search(query, {search_string, searchable_fields}, live_resource) do
+      case live_resource.config(:full_text_search) do
+        nil ->
+          ilike_q = "%#{search_string}%"
+
+          Ash.Query.filter_input(live_resource.adapter_config(:resource),
+            or: Enum.map(searchable_fields, fn {k, _v} -> Keyword.new([{k, [ilike: ilike_q]}]) end)
+          )
+
+        ts_vector_column ->
+          Ash.Query.filter(
+            query,
+            expr(
+              fragment(
+                "? @@ websearch_to_tsquery(?)",
+                ^ref(ts_vector_column),
+                ^search_string
+              )
+            )
+          )
+      end
     end
 
     @doc """

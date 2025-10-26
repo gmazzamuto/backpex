@@ -33,13 +33,14 @@ defmodule DemoWeb.TicketLive do
       subject: %{
         module: Backpex.Fields.Text,
         label: "Subject",
-        orderable: true
+        orderable: true,
+        searchable: true
       },
       body: %{
         module: Backpex.Fields.Textarea,
         label: "Body",
         orderable: false,
-        only: [:show]
+        except: [:index]
       }
     ]
   end
