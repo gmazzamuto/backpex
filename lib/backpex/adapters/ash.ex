@@ -5,22 +5,46 @@ if Code.ensure_loaded?(Ash) do
         doc: "The `Ash.Resource` that will be used to perform CRUD operations.",
         type: :atom,
         required: true
+      ],
+      assigns_actor_path: [
+        doc: """
+          The path in the `assigns` to retrieve the actor used for Ash actions. To set the path for the whole Backpex,
+          set the `:actor_assigns_path` option in your `config.exs`. For example:
+        ```elixir
+        config :backpex, assigns_actor_path: [:current_user]
+        ```
+        or
+        ```elixir
+        config :backpex, assigns_actor_path: [:current_scope, :user]
+        ```
+        """,
+        type: {:list, :atom}
+      ],
+      read_action: [
+        doc: """
+        The read action used for indexing. If not specified, the primary action will be used. If a custom action is
+        specified, that action needs to have offset pagination enabled (see [Ash Pagination](https://hexdocs.pm/ash/pagination.html)).
+        """,
+        type: :atom,
+        default: nil
       ]
     ]
 
     @moduledoc """
     The `Backpex.Adapter` to connect your `Backpex.LiveResource` to an `Ash.Resource`.
 
-    ## `adapter_config`
-
-    #{NimbleOptions.docs(@config_schema)}
-
     > ### Work in progress {: .error}
     >
     > The `Backpex.Adapters.Ash` is currently not usable! It can barely list and show items. We will work on this as we continue to implement  the `Backpex.Adapter` pattern throughout the codebase.
+
+    ## `adapter_config`
+
+    #{NimbleOptions.docs(@config_schema)}
     """
 
     use Backpex.Adapter, config_schema: @config_schema
+    alias Ash.Resource
+    require Logger
     require Ash.Query
 
     @doc """
@@ -42,18 +66,58 @@ if Code.ensure_loaded?(Ash) do
     Returns a list of items by given criteria.
     """
     @impl Backpex.Adapter
-    def list(_criteria, _fields, _assigns, live_resource) do
-      live_resource.adapter_config(:resource)
-      |> Ash.read()
+    def list(criteria, _fields, assigns, _live_resource) do
+      list_query(criteria, assigns) |> Ash.read()
     end
 
     @doc """
     Returns the number of items matching the given criteria.
     """
     @impl Backpex.Adapter
-    def count(_criteria, _fields, _assigns, live_resource) do
-      live_resource.adapter_config(:resource)
-      |> Ash.count()
+    def count(criteria, _fields, assigns, _live_resource) do
+      list_query(criteria, assigns) |> Ash.count()
+    end
+
+    # Returns the main database query for selecting a list of items by given criteria.
+    defp list_query(criteria, %{live_resource: live_resource} = assigns) do
+      %{size: limit, page: page} = criteria[:pagination]
+
+      resource = live_resource.adapter_config(:resource)
+      action = live_resource.adapter_config(:read_action) || Resource.Info.primary_action(resource, :read).name
+
+      read_options = get_actor_option(assigns)
+
+      sort_options =
+        case criteria[:order] do
+          %{direction: direction, by: by} -> Keyword.new([{by, direction}])
+          _default -> []
+        end
+
+      resource
+      |> Ash.Query.for_read(action, %{}, read_options)
+      |> Ash.Query.sort(sort_options)
+      |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
+    end
+
+    defp get_actor_option(%{live_resource: live_resource} = assigns) do
+      path = live_resource.adapter_config(:assigns_actor_path) || Application.get_env(:backpex, :assigns_actor_path)
+
+      actor =
+        case path do
+          nil ->
+            nil
+
+          path ->
+            actor = get_in(assigns, path)
+
+            if is_nil(actor) do
+              raise "The actor at path `#{inspect(path)}` is nil."
+            end
+
+            actor
+        end
+
+      [actor: actor]
     end
 
     @doc """

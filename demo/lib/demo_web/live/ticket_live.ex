@@ -33,7 +33,7 @@ defmodule DemoWeb.TicketLive do
       subject: %{
         module: Backpex.Fields.Text,
         label: "Subject",
-        orderable: false
+        orderable: true
       },
       body: %{
         module: Backpex.Fields.Textarea,

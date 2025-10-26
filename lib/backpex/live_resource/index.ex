@@ -440,23 +440,12 @@ defmodule Backpex.LiveResource.Index do
     filters = LiveResource.active_filters(socket.assigns)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
-    schema = live_resource.adapter_config(:schema)
-
-    count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
-      filters: LiveResource.filter_options(valid_filter_params, filters)
-    ]
-
-    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
-
     per_page =
       params
       |> LiveResource.parse_integer("per_page", per_page_default)
       |> LiveResource.value_in_permitted_or_default(per_page_options, per_page_default)
 
-    total_pages = LiveResource.calculate_total_pages(item_count, per_page)
-
-    page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
+    page = params |> LiveResource.parse_integer("page", 1)
     page_options = %{page: page, per_page: per_page}
 
     order_options = LiveResource.order_options_by_params(params, fields, init_order, socket.assigns)
@@ -469,10 +458,8 @@ defmodule Backpex.LiveResource.Index do
 
     socket
     |> assign(:page_title, socket.assigns.live_resource.plural_name())
-    |> assign(:item_count, item_count)
     |> assign(:query_options, query_options)
     |> assign(:init_order, init_order)
-    |> assign(:total_pages, total_pages)
     |> assign(:per_page_options, per_page_options)
     |> assign(:filters, filters)
     |> assign(:orderable_fields, LiveResource.orderable_fields(fields))
@@ -482,7 +469,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
     |> maybe_redirect_to_default_filters()
-    |> assign_items()
+    |> refresh_items()
     |> maybe_assign_metrics()
     |> apply_index_return_to()
   end
@@ -543,18 +530,25 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp refresh_items(socket) do
-    %{live_resource: live_resource, params: params, query_options: query_options, fields: fields} = socket.assigns
+    %{live_resource: live_resource, query_options: query_options, fields: fields} = socket.assigns
 
-    schema = live_resource.adapter_config(:schema)
-    filters = LiveResource.active_filters(socket.assigns)
-    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
+    criteria = LiveResource.build_criteria(socket.assigns)
 
-    count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
-      filters: LiveResource.filter_options(valid_filter_params, filters)
-    ]
+    {:ok, items} = Resource.list(criteria, fields, socket.assigns, live_resource)
 
-    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+    {items, item_count} =
+      case items do
+        %Ash.Page.Offset{results: items, count: item_count} ->
+          {items, item_count}
+
+        items ->
+          {:ok, item_count} =
+            Keyword.take(criteria, [:search, :filters])
+            |> Resource.count(fields, socket.assigns, live_resource)
+
+          {items, item_count}
+      end
+
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
     new_query_options = Map.put(query_options, :page, LiveResource.validate_page(page, total_pages))
@@ -563,7 +557,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:item_count, item_count)
     |> assign(:total_pages, total_pages)
     |> assign(:query_options, new_query_options)
-    |> assign_items()
+    |> assign(:items, items)
     |> maybe_assign_metrics()
   end
 
@@ -607,16 +601,5 @@ defmodule Backpex.LiveResource.Index do
 
     socket
     |> assign(metrics: metrics)
-  end
-
-  defp assign_items(socket) do
-    %{assigns: %{live_resource: live_resource, fields: fields} = assigns} = socket
-
-    {:ok, items} =
-      assigns
-      |> LiveResource.build_criteria()
-      |> Resource.list(fields, assigns, live_resource)
-
-    assign(socket, :items, items)
   end
 end
