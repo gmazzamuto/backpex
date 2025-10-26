@@ -5,6 +5,10 @@ defmodule Demo.Helpdesk.Ticket do
     domain: Demo.Helpdesk,
     data_layer: AshPostgres.DataLayer
 
+  @status_options [:open, :closed]
+
+  def status_options, do: @status_options
+
   postgres do
     repo Demo.Repo
     table "tickets"
@@ -25,6 +29,15 @@ defmodule Demo.Helpdesk.Ticket do
     attribute :generated_tsvector, AshPostgres.Tsvector
     attribute :subject, :string, allow_nil?: false, public?: true
     attribute :body, :string, allow_nil?: false, public?: true
+
+    attribute :status, :atom do
+      constraints one_of: @status_options
+
+      default :open
+
+      allow_nil? false
+    end
+
     create_timestamp :inserted_at
     update_timestamp :updated_at
   end

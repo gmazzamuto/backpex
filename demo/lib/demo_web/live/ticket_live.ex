@@ -41,6 +41,12 @@ defmodule DemoWeb.TicketLive do
         label: "Body",
         orderable: false,
         except: [:index]
+      },
+      status: %{
+        module: Backpex.Fields.Select,
+        label: "Status",
+        orderable: true,
+        options: Demo.Helpdesk.Ticket.status_options(),
       }
     ]
   end
