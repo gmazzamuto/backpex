@@ -41,8 +41,8 @@ if Code.ensure_loaded?(Ash) do
 
     #{NimbleOptions.docs(@config_schema)}
 
-    ## Search
-    Searching works on attributes marked as [`public?`](https://hexdocs.pm/ash/dsl-ash-resource.html#attributes-attribute-public?).
+    ## Search & filters
+    Search and filters work on attributes marked as [`public?`](https://hexdocs.pm/ash/dsl-ash-resource.html#attributes-attribute-public?).
     """
 
     use Backpex.Adapter, config_schema: @config_schema
@@ -101,6 +101,7 @@ if Code.ensure_loaded?(Ash) do
       |> Ash.Query.for_read(action, %{}, read_options)
       |> Ash.Query.sort(sort_options)
       |> apply_search(criteria[:search], live_resource)
+      |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key(), assigns)
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
@@ -157,6 +158,16 @@ if Code.ensure_loaded?(Ash) do
       if not Resource.Info.attribute(resource, field).public? do
         raise "Attribute #{inspect(field)} must be set as public for search to work."
       end
+    end
+
+    def apply_filters(query, filters, empty_filter_key, assigns) do
+      Enum.reduce(filters, query, fn
+        %{field: ^empty_filter_key} = _filter, acc ->
+          acc
+
+        %{field: field, value: value, filter_config: filter_config} = _filter, acc ->
+          filter_config.module.query(acc, field, value, assigns)
+      end)
     end
 
     @doc """
