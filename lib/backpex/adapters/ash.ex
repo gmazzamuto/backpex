@@ -93,9 +93,20 @@ if Code.ensure_loaded?(Ash) do
           _default -> []
         end
 
+      filter_options =
+        case criteria[:search] do
+          {search_string, searchable_fields} ->
+            search_string = "%#{search_string}%"
+            [or: Enum.map(searchable_fields, fn {k, _v} -> Keyword.new([{k, [ilike: search_string]}]) end)]
+
+          _default ->
+            []
+        end
+
       resource
       |> Ash.Query.for_read(action, %{}, read_options)
       |> Ash.Query.sort(sort_options)
+      |> Ash.Query.filter_input(filter_options)
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
