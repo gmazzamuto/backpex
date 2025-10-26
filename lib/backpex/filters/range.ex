@@ -136,6 +136,13 @@ defmodule Backpex.Filters.Range do
     query
   end
 
+  def do_query({start_at, end_at}, %Ash.Query{} = query, attribute) do
+    start_filter = if start_at == nil, do: %{}, else: %{attribute => [gte: start_at]}
+    end_filter = if end_at == nil, do: %{}, else: %{attribute => [lte: end_at]}
+
+    Ash.Query.filter_input(query, [start_filter, end_filter])
+  end
+
   def do_query({nil, nil}, query, _attribute), do: query
 
   def do_query({start_at, nil}, query, attribute) do

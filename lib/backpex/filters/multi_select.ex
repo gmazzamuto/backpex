@@ -126,6 +126,10 @@ defmodule Backpex.Filters.MultiSelect do
 
   def query(query, _attribute, [], _assigns), do: query
 
+  def query(%Ash.Query{} = query, attribute, value, _assigns) do
+    Ash.Query.filter_input(query, %{attribute => [in: value]})
+  end
+
   def query(query, attribute, values, _assigns) do
     where(query, [x], field(x, ^attribute) in ^values)
   end

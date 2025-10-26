@@ -103,6 +103,10 @@ defmodule Backpex.Filters.Select do
   def selected(""), do: nil
   def selected(value), do: value
 
+  def query(%Ash.Query{} = query, attribute, value, _assigns) do
+    Ash.Query.filter_input(query, %{attribute => value})
+  end
+
   def query(query, attribute, value, _assigns) do
     where(query, [x], field(x, ^attribute) == ^value)
   end

@@ -36,9 +36,10 @@ defmodule Demo.Helpdesk.Ticket do
       default :open
 
       allow_nil? false
+      public? true
     end
 
-    create_timestamp :inserted_at
+    create_timestamp :inserted_at, public?: true
     update_timestamp :updated_at
   end
 end

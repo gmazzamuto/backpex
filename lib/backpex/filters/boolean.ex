@@ -1,7 +1,8 @@
 defmodule Backpex.Filters.Boolean do
   @moduledoc """
   The boolean filter renders one checkbox per given option, hence multiple options can apply at the same time.
-  Instead of implementing a `query` callback, you need to define predicates for each option leveraging [`Ecto.Query.dynamic/2`](https://hexdocs.pm/ecto/Ecto.Query.html#dynamic/2).
+  Instead of implementing a `query` callback, you need to define predicates for each option leveraging [`Ecto.Query.dynamic/2`](https://hexdocs.pm/ecto/Ecto.Query.html#dynamic/2)
+  or `Ash.Query.filter_input/2` for `Ash` resources.
 
   > #### Warning {: .warning}
   >
@@ -33,6 +34,10 @@ defmodule Backpex.Filters.Boolean do
           ]
         end
       end
+
+  For an `Ash` resource write the predicate like this:
+      predicate: [published: true]
+      predicate: [published: false]
 
   > #### `use Backpex.Filters.Boolean` {: .info}
   >
@@ -125,6 +130,11 @@ defmodule Backpex.Filters.Boolean do
   end
 
   def query(query, _options, _attribute, [], _assigns), do: query
+
+  def query(%Ash.Query{} = query, options, _attribute, value, _assigns) do
+    selected_options = Enum.filter(options, fn opt -> opt.key in value end)
+    Ash.Query.filter_input(query, or: Enum.map(selected_options, & &1.predicate))
+  end
 
   def query(query, options, _attribute, value, _assigns) do
     Enum.reduce(value, nil, fn

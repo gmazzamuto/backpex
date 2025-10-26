@@ -24,10 +24,6 @@ defmodule DemoWeb.TicketLive do
   end
 
   @impl Backpex.LiveResource
-  def can?(_assigns, action, _item) when action in [:index, :show, :delete], do: true
-  def can?(_assigns, _action, _item), do: false
-
-  @impl Backpex.LiveResource
   def fields do
     [
       subject: %{
@@ -46,7 +42,55 @@ defmodule DemoWeb.TicketLive do
         module: Backpex.Fields.Select,
         label: "Status",
         orderable: true,
-        options: Demo.Helpdesk.Ticket.status_options(),
+        options: Demo.Helpdesk.Ticket.status_options()
+      },
+      inserted_at: %{
+        module: Backpex.Fields.DateTime,
+        label: "Created at",
+        orderable: true
+      }
+    ]
+  end
+
+  @impl Backpex.LiveResource
+  def filters do
+    [
+      status: %{
+        module: DemoWeb.Filters.TicketStatusBoolean,
+        label: "Status"
+      },
+      inserted_at: %{
+        module: DemoWeb.Filters.DateTimeRange,
+        label: "Created at",
+        presets: [
+          %{
+            label: "Last 7 Days",
+            values: fn ->
+              %{
+                "start" => Date.add(Date.utc_today(), -7),
+                "end" => Date.utc_today()
+              }
+            end
+          },
+          %{
+            label: "Last 14 Days",
+            values: fn ->
+              %{
+                "start" => Date.add(Date.utc_today(), -14),
+                "end" => Date.utc_today()
+              }
+            end
+          },
+          %{
+            label: "Last 30 Days",
+            values: fn ->
+              %{
+                "start" => Date.add(Date.utc_today(), -30),
+                "end" => Date.utc_today()
+              }
+            end
+          }
+        ]
       }
     ]
   end
