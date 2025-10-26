@@ -59,4 +59,14 @@ use Backpex.LiveResource,
   full_text_search: :generated_tsvector
 ```
 
+For `Ash` resources, also add the corresponding attribute:
+```elixir
+  attributes do
+    ...
+    attribute :generated_tsvector, AshPostgres.Tsvector
+    ...
+  end
+
+```
+
 You can now perform full-text searches on the resource index view.

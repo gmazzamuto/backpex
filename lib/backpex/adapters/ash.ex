@@ -40,6 +40,9 @@ if Code.ensure_loaded?(Ash) do
     ## `adapter_config`
 
     #{NimbleOptions.docs(@config_schema)}
+
+    ## Search
+    Searching works on attributes marked as [`public?`](https://hexdocs.pm/ash/dsl-ash-resource.html#attributes-attribute-public?).
     """
 
     use Backpex.Adapter, config_schema: @config_schema
@@ -128,8 +131,11 @@ if Code.ensure_loaded?(Ash) do
       case live_resource.config(:full_text_search) do
         nil ->
           ilike_q = "%#{search_string}%"
+          resource = live_resource.adapter_config(:resource)
 
-          Ash.Query.filter_input(live_resource.adapter_config(:resource),
+          Enum.each(searchable_fields, fn {field, _v} -> raise_if_not_public(resource, field) end)
+
+          Ash.Query.filter_input(resource,
             or: Enum.map(searchable_fields, fn {k, _v} -> Keyword.new([{k, [ilike: ilike_q]}]) end)
           )
 
@@ -144,6 +150,12 @@ if Code.ensure_loaded?(Ash) do
               )
             )
           )
+      end
+    end
+
+    defp raise_if_not_public(resource, field) do
+      if not Resource.Info.attribute(resource, field).public? do
+        raise "Attribute #{inspect(field)} must be set as public for search to work."
       end
     end
 
