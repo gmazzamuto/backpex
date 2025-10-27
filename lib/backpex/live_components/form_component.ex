@@ -70,18 +70,23 @@ defmodule Backpex.FormComponent do
     end
   end
 
+  defp assign_form(%{assigns: %{action_type: action_type}} = socket) when action_type in [:item, :resource] do
+    assign_form_from_changeset(socket)
+  end
+
   defp assign_form(%{assigns: assigns} = socket) do
     %{live_resource: live_resource} = assigns
 
     case live_resource.config(:adapter) do
-      Backpex.Adapters.Ecto ->
-        changeset = assigns.changeset
-        form = Phoenix.Component.to_form(changeset, as: :change)
-        assign(socket, :form, form)
-
-      Backpex.Adapters.Ash ->
-        assign_new(socket, :form, fn -> get_ash_phoenix_form(assigns) end)
+      Backpex.Adapters.Ecto -> assign_form_from_changeset(socket)
+      Backpex.Adapters.Ash -> assign_new(socket, :form, fn -> get_ash_phoenix_form(assigns) end)
     end
+  end
+
+  defp assign_form_from_changeset(%{assigns: assigns} = socket) do
+    changeset = assigns.changeset
+    form = Phoenix.Component.to_form(changeset, as: :change)
+    assign(socket, :form, form)
   end
 
   defp get_ash_phoenix_form(%{live_resource: live_resource} = assigns) do
