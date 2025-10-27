@@ -291,7 +291,7 @@ defmodule Backpex.LiveResource do
           if remap[action] == nil do
             action
           else
-            Backpex.Adapters.Ash.get_ash_primary_action(assigns.live_resource, remap[action])
+            Backpex.Adapters.Ash.get_ash_primary_action(assigns.live_resource, remap[action], assigns)
           end
 
         actor = Backpex.Adapters.Ash.get_actor_option(assigns)[:actor]

@@ -18,11 +18,12 @@ if Code.ensure_loaded?(Ash) do
         config :backpex, assigns_actor_path: [:current_scope, :user]
         ```
         """,
-        type: {:list, :atom}
+        type: {:or, [:atom, {:fun, 1}]},
+        default: nil
       ],
       create_action: [
         doc: "The create action used for new items. If not specified, the primary action will be used.",
-        type: :atom,
+        type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ],
       read_action: [
@@ -30,17 +31,17 @@ if Code.ensure_loaded?(Ash) do
         The read action used for indexing. If not specified, the primary action will be used. If a custom action is
         specified, that action needs to have offset pagination enabled (see [Ash Pagination](https://hexdocs.pm/ash/pagination.html)).
         """,
-        type: :atom,
+        type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ],
       update_action: [
         doc: "The update action used for editing. If not specified, the primary action will be used.",
-        type: :atom,
+        type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ],
       destroy_action: [
         doc: "The destroy action used for deleting items. If not specified, the primary action will be used.",
-        type: :atom,
+        type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ]
     ]
@@ -102,7 +103,7 @@ if Code.ensure_loaded?(Ash) do
       %{size: limit, page: page} = criteria[:pagination]
 
       resource = live_resource.adapter_config(:resource)
-      action = get_ash_primary_action(live_resource, :read)
+      action = get_ash_primary_action(live_resource, :read, assigns)
 
       read_options = get_actor_option(assigns)
 
@@ -120,14 +121,24 @@ if Code.ensure_loaded?(Ash) do
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
-    def get_ash_primary_action(live_resource, action) when action in [:create, :read, :update, :destroy] do
+    def get_ash_primary_action(live_resource, action, assigns) when action in [:create, :read, :update, :destroy] do
       resource = live_resource.adapter_config(:resource)
       action_key = String.to_existing_atom("#{action}_action")
-      live_resource.adapter_config(action_key) || Resource.Info.primary_action(resource, action).name
+
+      case live_resource.adapter_config(action_key) do
+        nil -> Resource.Info.primary_action(resource, action).name
+        f when is_function(f, 1) -> f.(assigns)
+        action when is_atom(action) -> action
+      end
     end
 
     def get_actor_option(%{live_resource: live_resource} = assigns) do
-      path = live_resource.adapter_config(:assigns_actor_path) || Application.get_env(:backpex, :assigns_actor_path)
+      path =
+        case live_resource.adapter_config(:assigns_actor_path) do
+          nil -> Application.get_env(:backpex, :assigns_actor_path)
+          f when is_function(f) -> f.(assigns)
+          path -> path
+        end
 
       actor =
         case path do
