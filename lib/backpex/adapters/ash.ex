@@ -37,6 +37,11 @@ if Code.ensure_loaded?(Ash) do
         doc: "The update action used for editing. If not specified, the primary action will be used.",
         type: :atom,
         default: nil
+      ],
+      destroy_action: [
+        doc: "The destroy action used for deleting items. If not specified, the primary action will be used.",
+        type: :atom,
+        default: nil
       ]
     ]
 
@@ -115,7 +120,7 @@ if Code.ensure_loaded?(Ash) do
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
-    def get_ash_primary_action(live_resource, action) when action in [:read, :create, :update] do
+    def get_ash_primary_action(live_resource, action) when action in [:create, :read, :update, :destroy] do
       resource = live_resource.adapter_config(:resource)
       action_key = String.to_existing_atom("#{action}_action")
       live_resource.adapter_config(action_key) || Resource.Info.primary_action(resource, action).name

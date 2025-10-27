@@ -277,7 +277,28 @@ defmodule Backpex.LiveResource do
       def fields(live_action, assigns), do: LiveResource.fields(__MODULE__, live_action, assigns)
 
       @impl Backpex.LiveResource
-      def can?(_assigns, _action, _item), do: true
+      def can?(assigns, action, item) do
+        case @resource_opts[:adapter] do
+          Backpex.Adapters.Ash -> ash_can?(item, action, assigns)
+          _default -> true
+        end
+      end
+
+      def ash_can?(item, action, assigns) do
+        remap = %{new: :create, index: :read, edit: :update, show: :read, delete: :destroy}
+
+        ash_action =
+          if remap[action] == nil do
+            action
+          else
+            Backpex.Adapters.Ash.get_ash_primary_action(assigns.live_resource, remap[action])
+          end
+
+        actor = Backpex.Adapters.Ash.get_actor_option(assigns)[:actor]
+        item = item || assigns.live_resource.adapter_config(:resource)
+
+        Ash.can?({item, ash_action}, actor, run_queries?: false)
+      end
 
       @impl Backpex.LiveResource
       def index_row_class(assigns, item, selected, index), do: nil
