@@ -15,7 +15,8 @@ defmodule Demo.Helpdesk.Ticket do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults [:create, :read, :update, :destroy]
+    default_accept :*
   end
 
   preparations do

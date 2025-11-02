@@ -20,11 +20,21 @@ if Code.ensure_loaded?(Ash) do
         """,
         type: {:list, :atom}
       ],
+      create_action: [
+        doc: "The create action used for new items. If not specified, the primary action will be used.",
+        type: :atom,
+        default: nil
+      ],
       read_action: [
         doc: """
         The read action used for indexing. If not specified, the primary action will be used. If a custom action is
         specified, that action needs to have offset pagination enabled (see [Ash Pagination](https://hexdocs.pm/ash/pagination.html)).
         """,
+        type: :atom,
+        default: nil
+      ],
+      update_action: [
+        doc: "The update action used for editing. If not specified, the primary action will be used.",
         type: :atom,
         default: nil
       ]
@@ -87,7 +97,7 @@ if Code.ensure_loaded?(Ash) do
       %{size: limit, page: page} = criteria[:pagination]
 
       resource = live_resource.adapter_config(:resource)
-      action = live_resource.adapter_config(:read_action) || Resource.Info.primary_action(resource, :read).name
+      action = get_ash_primary_action(live_resource, :read)
 
       read_options = get_actor_option(assigns)
 
@@ -105,7 +115,13 @@ if Code.ensure_loaded?(Ash) do
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
-    defp get_actor_option(%{live_resource: live_resource} = assigns) do
+    def get_ash_primary_action(live_resource, action) when action in [:read, :create, :update] do
+      resource = live_resource.adapter_config(:resource)
+      action_key = String.to_existing_atom("#{action}_action")
+      live_resource.adapter_config(action_key) || Resource.Info.primary_action(resource, action).name
+    end
+
+    def get_actor_option(%{live_resource: live_resource} = assigns) do
       path = live_resource.adapter_config(:assigns_actor_path) || Application.get_env(:backpex, :assigns_actor_path)
 
       actor =

@@ -4,6 +4,7 @@ defmodule Backpex.FormComponent do
   """
   use BackpexWeb, :html
   use Phoenix.LiveComponent
+  import Backpex.Adapters.Ash, only: [get_ash_primary_action: 2, get_actor_option: 1]
   alias Backpex.Fields.Upload
   alias Backpex.Resource
   alias Backpex.ResourceAction
@@ -69,11 +70,31 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp assign_form(socket) do
-    changeset = socket.assigns.changeset
-    form = Phoenix.Component.to_form(changeset, as: :change)
+  defp assign_form(%{assigns: assigns} = socket) do
+    %{live_resource: live_resource} = assigns
 
-    assign(socket, :form, form)
+    case live_resource.config(:adapter) do
+      Backpex.Adapters.Ecto ->
+        changeset = assigns.changeset
+        form = Phoenix.Component.to_form(changeset, as: :change)
+        assign(socket, :form, form)
+
+      Backpex.Adapters.Ash ->
+        assign_new(socket, :form, fn -> get_ash_phoenix_form(assigns) end)
+    end
+  end
+
+  defp get_ash_phoenix_form(%{live_resource: live_resource} = assigns) do
+    resource = live_resource.adapter_config(:resource)
+    opts = [as: "change"] |> Keyword.merge(get_actor_option(assigns))
+
+    case assigns.live_action do
+      :new ->
+        AshPhoenix.Form.for_create(resource, get_ash_primary_action(live_resource, :create), opts)
+
+      :edit ->
+        AshPhoenix.Form.for_update(assigns.item, get_ash_primary_action(live_resource, :update), opts)
+    end
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
@@ -108,7 +129,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
-    %{live_resource: live_resource, fields: fields, item: item} = socket.assigns
+    %{live_resource: live_resource, fields: fields, item: item, form: form} = socket.assigns
 
     target = Enum.at(target, 1)
     assocs = Map.get(socket.assigns, :assocs, [])
@@ -119,16 +140,26 @@ defmodule Backpex.FormComponent do
       |> put_upload_change(socket, :validate)
 
     opts = [target: target, assocs: assocs]
-    changeset = Resource.change(item, change, fields, socket.assigns, live_resource, opts)
 
-    form = Phoenix.Component.to_form(changeset, as: :change)
+    case live_resource.config(:adapter) do
+      Backpex.Adapters.Ecto ->
+        changeset = Resource.change(item, change, fields, socket.assigns, live_resource, opts)
+        send(self(), {:update_changeset, changeset})
+        form = Phoenix.Component.to_form(changeset, as: :change)
 
-    send(self(), {:update_changeset, changeset})
+        socket
+        |> assign(:form, form)
+        |> assign(:show_form_errors, false)
+        |> noreply()
 
-    socket
-    |> assign(:form, form)
-    |> assign(:show_form_errors, false)
-    |> noreply()
+      Backpex.Adapters.Ash ->
+        form = AshPhoenix.Form.validate(form, change)
+
+        socket
+        |> assign(:form, form)
+        |> assign(:show_form_errors, form.submitted_once?)
+        |> noreply()
+    end
   end
 
   def handle_event("validate", _params, socket) do
@@ -235,6 +266,12 @@ defmodule Backpex.FormComponent do
         |> push_navigate(to: return_to)
         |> noreply()
 
+      {:error, %AshPhoenix.Form{} = form} ->
+        socket
+        |> assign(:show_form_errors, true)
+        |> assign(:form, form)
+        |> noreply()
+
       {:error, changeset} when is_struct(changeset) ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -280,6 +317,12 @@ defmodule Backpex.FormComponent do
         |> clear_flash()
         |> put_flash(:info, info_msg)
         |> push_navigate(to: return_to)
+        |> noreply()
+
+      {:error, %AshPhoenix.Form{} = form} ->
+        socket
+        |> assign(:show_form_errors, true)
+        |> assign(:form, form)
         |> noreply()
 
       {:error, changeset} when is_struct(changeset) ->
