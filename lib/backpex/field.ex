@@ -255,6 +255,11 @@ defmodule Backpex.Field do
             """
         end
       end
+
+      @impl Backpex.Field
+      def render_value(%{value: %Ash.ForbiddenField{}} = var!(assigns)) do
+        ~H"<span>{Backpex.HTML.pretty_value(nil)}</span>"
+      end
     end
   end
 
