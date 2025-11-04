@@ -42,7 +42,8 @@ defmodule DemoWeb.TicketLive do
         module: Backpex.Fields.Select,
         label: "Status",
         orderable: true,
-        options: Demo.Helpdesk.Ticket.status_options()
+        options: Demo.Helpdesk.Ticket.status_options(),
+        index_editable: true
       },
       inserted_at: %{
         module: Backpex.Fields.DateTime,

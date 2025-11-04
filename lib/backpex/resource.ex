@@ -120,12 +120,23 @@ defmodule Backpex.Resource do
           |> call_adapter_action(action, live_resource)
 
         Backpex.Adapters.Ash ->
-          AshPhoenix.Form.submit(assigns.form, params: attrs)
+          ash_persist_item(item, attrs, assigns, live_resource)
       end
 
     item
     |> after_save(after_save_fun)
     |> broadcast(event_name, live_resource)
+  end
+
+  defp ash_persist_item(item, attrs, %{live_action: live_action} = assigns, live_resource) do
+    case live_action do
+      live_action when live_action in [:new, :edit] ->
+        AshPhoenix.Form.submit(assigns.form, params: attrs)
+
+      :index ->
+        ash_action = Backpex.Adapters.Ash.get_ash_primary_action(live_resource, :update, assigns)
+        Ash.Changeset.for_update(item, ash_action, attrs) |> Ash.update()
+    end
   end
 
   defp call_adapter_action(changeset, action, live_resource) do
