@@ -294,10 +294,14 @@ defmodule Backpex.LiveResource do
             Backpex.Adapters.Ash.get_ash_primary_action(assigns.live_resource, remap[action], assigns)
           end
 
-        actor = Backpex.Adapters.Ash.get_actor_option(assigns)[:actor]
-        item = item || assigns.live_resource.adapter_config(:resource)
+        if ash_action do
+          actor = Backpex.Adapters.Ash.get_actor_option(assigns)[:actor]
+          item = item || assigns.live_resource.adapter_config(:resource)
 
-        Ash.can?({item, ash_action}, actor, run_queries?: false)
+          Ash.can?({item, ash_action}, actor, run_queries?: false)
+        else
+          false
+        end
       end
 
       @impl Backpex.LiveResource

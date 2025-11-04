@@ -126,7 +126,7 @@ if Code.ensure_loaded?(Ash) do
       action_key = String.to_existing_atom("#{action}_action")
 
       case live_resource.adapter_config(action_key) do
-        nil -> Resource.Info.primary_action(resource, action).name
+        nil -> if(action = Resource.Info.primary_action(resource, action), do: action.name)
         f when is_function(f, 1) -> f.(assigns)
         action when is_atom(action) -> action
       end
