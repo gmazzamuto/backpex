@@ -210,10 +210,12 @@ if Code.ensure_loaded?(Ash) do
       primary_key = live_resource.config(:primary_key)
       ids = Enum.map(items, &Map.fetch!(&1, primary_key))
 
+      destroy_action = get_ash_primary_action(live_resource, :destroy, "passing_assigns_not_supported")
+
       result =
         live_resource.adapter_config(:resource)
         |> Ash.Query.filter(^Ash.Expr.ref(primary_key) in ^ids)
-        |> Ash.bulk_destroy(:destroy, %{}, return_records?: true)
+        |> Ash.bulk_destroy(destroy_action, %{}, return_records?: true)
 
       {:ok, result.records}
     end
