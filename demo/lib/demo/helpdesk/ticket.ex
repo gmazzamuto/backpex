@@ -15,14 +15,35 @@ defmodule Demo.Helpdesk.Ticket do
   end
 
   actions do
-    defaults [:create, :read, :update, :destroy]
+    defaults [:read, :destroy]
     default_accept :*
+
+    create :create do
+      primary? true
+      argument :contact_details, {:array, :map}, allow_nil?: true
+      change manage_relationship(:contact_details, type: :direct_control)
+    end
+
+    update :update do
+      accept :*
+      primary? true
+      require_atomic? false
+
+      argument :contact_details, {:array, :map}, allow_nil?: true
+      change manage_relationship(:contact_details, type: :direct_control)
+    end
   end
 
   preparations do
     prepare fn query, _context ->
       Ash.Query.deselect(query, :generated_tsvector)
     end
+
+    prepare build(load: [:contact_details])
+  end
+
+  changes do
+    change manage_relationship(:contact_details, type: :direct_control)
   end
 
   attributes do
@@ -42,5 +63,9 @@ defmodule Demo.Helpdesk.Ticket do
 
     create_timestamp :inserted_at, public?: true
     update_timestamp :updated_at
+  end
+
+  relationships do
+    has_many :contact_details, Demo.Helpdesk.ContactDetails, public?: true
   end
 end

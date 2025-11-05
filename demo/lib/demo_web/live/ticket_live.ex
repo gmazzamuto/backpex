@@ -45,6 +45,22 @@ defmodule DemoWeb.TicketLive do
         options: Demo.Helpdesk.Ticket.status_options(),
         index_editable: true
       },
+      contact_details: %{
+        module: Backpex.Fields.InlineCRUD,
+        label: "Contact persons",
+        type: :assoc,
+        except: [:index],
+        child_fields: [
+          name: %{
+            module: Backpex.Fields.Text,
+            label: "Name"
+          },
+          phone: %{
+            module: Backpex.Fields.Text,
+            label: "Phone"
+          }
+        ]
+      },
       inserted_at: %{
         module: Backpex.Fields.DateTime,
         label: "Created at",

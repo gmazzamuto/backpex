@@ -5,5 +5,6 @@ defmodule Demo.Helpdesk do
 
   resources do
     resource Demo.Helpdesk.Ticket
+    resource Demo.Helpdesk.ContactDetails
   end
 end
