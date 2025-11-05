@@ -13,7 +13,9 @@ if Code.ensure_loaded?(Ash) do
         ```elixir
         config :backpex, assigns_actor_path: [:current_user]
         ```
+
         or
+
         ```elixir
         config :backpex, assigns_actor_path: [:current_scope, :user]
         ```
@@ -22,26 +24,42 @@ if Code.ensure_loaded?(Ash) do
         default: nil
       ],
       create_action: [
-        doc: "The create action used for new items. If not specified, the primary action will be used.",
+        doc: """
+        The create action used for new items. If not specified, the primary `:create` action will be used. Can be an
+        atom or a function that takes the `assigns`.
+        """,
         type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ],
-      read_action: [
+      index_action: [
         doc: """
-        The read action used for indexing. If not specified, the primary action will be used. If a custom action is
-        specified, that action needs to have offset pagination enabled (see [Ash Pagination](https://hexdocs.pm/ash/pagination.html)).
+        The read action used for index views. If not specified, the primary `:read` action will be used. If a custom
+        action is specified, that action needs to have offset pagination enabled (see
+        [Ash Pagination](https://hexdocs.pm/ash/pagination.html)). Can be an atom or a function that takes the `assigns`.
+        """,
+        type: {:or, [:atom, {:fun, 1}]},
+        default: nil
+      ],
+      show_action: [
+        doc: """
+        The read action used for show views. If not specified, the primary `:read` action will be used. Can be an atom
+        or a function that takes the `assigns`.
         """,
         type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ],
       update_action: [
-        doc: "The update action used for editing. If not specified, the primary action will be used.",
+        doc: """
+        The update action used for editing. If not specified, the primary `:update` action will be used. Can be an atom
+        or a function that takes the `assigns`.
+        """,
         type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ],
       destroy_action: [
-        doc: "The destroy action used for deleting items. If not specified, the primary action will be used.",
-        type: {:or, [:atom, {:fun, 1}]},
+        doc:
+          "The destroy action used for deleting items. If not specified, the primary `:destroy` action will be used.",
+        type: :atom,
         default: nil
       ]
     ]
@@ -103,7 +121,7 @@ if Code.ensure_loaded?(Ash) do
       %{size: limit, page: page} = criteria[:pagination]
 
       resource = live_resource.adapter_config(:resource)
-      action = get_ash_primary_action(live_resource, :read, assigns)
+      action = get_ash_action(live_resource, :index, assigns)
 
       read_options = get_actor_option(assigns)
 
@@ -121,12 +139,24 @@ if Code.ensure_loaded?(Ash) do
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
-    def get_ash_primary_action(live_resource, action, assigns) when action in [:create, :read, :update, :destroy] do
+    @spec get_ash_action(atom(), :create | :index | :show | :update | :destroy, any()) :: any()
+    @doc """
+    Return the Ash [action](https://hexdocs.pm/ash/actions.html) to use, determined in the following order:
+    1. the action specified in the `adapter_config`
+    2. the corresponding primary action for the given Ash resource. `:index` and `:show` actions use the `read` action.
+    """
+    def get_ash_action(live_resource, action, assigns) when action in [:create, :index, :show, :update, :destroy] do
       resource = live_resource.adapter_config(:resource)
       action_key = String.to_existing_atom("#{action}_action")
 
+      ash_action =
+        case action do
+          action when action in [:index, :show] -> :read
+          action -> action
+        end
+
       case live_resource.adapter_config(action_key) do
-        nil -> if(action = Resource.Info.primary_action(resource, action), do: action.name)
+        nil -> if(action = Resource.Info.primary_action(resource, ash_action), do: action.name)
         f when is_function(f, 1) -> f.(assigns)
         action when is_atom(action) -> action
       end
@@ -210,7 +240,7 @@ if Code.ensure_loaded?(Ash) do
       primary_key = live_resource.config(:primary_key)
       ids = Enum.map(items, &Map.fetch!(&1, primary_key))
 
-      destroy_action = get_ash_primary_action(live_resource, :destroy, "passing_assigns_not_supported")
+      destroy_action = get_ash_action(live_resource, :destroy, "passing_assigns_not_supported")
 
       result =
         live_resource.adapter_config(:resource)

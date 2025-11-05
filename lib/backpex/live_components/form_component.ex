@@ -4,7 +4,7 @@ defmodule Backpex.FormComponent do
   """
   use BackpexWeb, :html
   use Phoenix.LiveComponent
-  import Backpex.Adapters.Ash, only: [get_ash_primary_action: 3, get_actor_option: 1]
+  import Backpex.Adapters.Ash, only: [get_ash_action: 3, get_actor_option: 1]
   alias Backpex.Fields.Upload
   alias Backpex.Resource
   alias Backpex.ResourceAction
@@ -95,10 +95,10 @@ defmodule Backpex.FormComponent do
 
     case assigns.live_action do
       :new ->
-        AshPhoenix.Form.for_create(resource, get_ash_primary_action(live_resource, :create, assigns), opts)
+        AshPhoenix.Form.for_create(resource, get_ash_action(live_resource, :create, assigns), opts)
 
       :edit ->
-        AshPhoenix.Form.for_update(assigns.item, get_ash_primary_action(live_resource, :update, assigns), opts)
+        AshPhoenix.Form.for_update(assigns.item, get_ash_action(live_resource, :update, assigns), opts)
     end
   end
 

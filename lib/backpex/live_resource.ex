@@ -285,13 +285,13 @@ defmodule Backpex.LiveResource do
       end
 
       def ash_can?(item, action, assigns) do
-        remap = %{new: :create, index: :read, edit: :update, show: :read, delete: :destroy}
+        remap = %{new: :create, index: :index, edit: :update, show: :show, delete: :destroy}
 
         ash_action =
           if remap[action] == nil do
             action
           else
-            Backpex.Adapters.Ash.get_ash_primary_action(assigns.live_resource, remap[action], assigns)
+            Backpex.Adapters.Ash.get_ash_action(assigns.live_resource, remap[action], assigns)
           end
 
         if ash_action do
