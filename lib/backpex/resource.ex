@@ -134,8 +134,9 @@ defmodule Backpex.Resource do
         AshPhoenix.Form.submit(assigns.form, params: attrs)
 
       :index ->
-        ash_action = Backpex.Adapters.Ash.get_ash_action(live_resource, :update, assigns)
-        Ash.Changeset.for_update(item, ash_action, attrs) |> Ash.update()
+        {ash_action, action_args, action_opts} = Backpex.Adapters.Ash.get_ash_action(live_resource, :update, assigns)
+        attrs = Map.merge(action_args, attrs)
+        Ash.Changeset.for_update(item, ash_action, attrs, action_opts) |> Ash.update()
     end
   end
 

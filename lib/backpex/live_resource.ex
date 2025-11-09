@@ -287,18 +287,29 @@ defmodule Backpex.LiveResource do
       def ash_can?(item, action, assigns) do
         remap = %{new: :create, index: :index, edit: :update, show: :show, delete: :destroy}
 
-        ash_action =
-          if remap[action] == nil do
-            action
-          else
-            Backpex.Adapters.Ash.get_ash_action(assigns.live_resource, remap[action], assigns)
-          end
+        action = remap[action] || action
 
-        if ash_action do
+        {ash_action, action_args, action_opts} =
+          Backpex.Adapters.Ash.get_ash_action(assigns.live_resource, action, assigns)
+
+        resource = assigns.live_resource.adapter_config(:resource)
+        info = Ash.Resource.Info.action(item || resource, ash_action)
+
+        if info do
+          changeset_or_query =
+            case info.type do
+              :read ->
+                Ash.Query.for_read(resource, ash_action, action_args, action_opts)
+
+              :create ->
+                Ash.Changeset.for_create(resource, ash_action, action_args, action_opts)
+
+              _type ->
+                Ash.Changeset.for_action(item || resource, ash_action, action_args, action_opts)
+            end
+
           actor = Backpex.Adapters.Ash.get_actor_option(assigns)[:actor]
-          item = item || assigns.live_resource.adapter_config(:resource)
-
-          Ash.can?({item, ash_action}, actor, run_queries?: false)
+          Ash.can?(changeset_or_query, actor, run_queries?: false)
         else
           false
         end

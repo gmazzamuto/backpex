@@ -95,10 +95,14 @@ defmodule Backpex.FormComponent do
 
     case assigns.live_action do
       :new ->
-        AshPhoenix.Form.for_create(resource, get_ash_action(live_resource, :create, assigns), opts)
+        {ash_action, action_args, action_opts} = get_ash_action(live_resource, :create, assigns)
+        action_opts = Keyword.put(opts, :params, action_args) |> Keyword.merge(action_opts)
+        AshPhoenix.Form.for_create(resource, ash_action, action_opts)
 
       :edit ->
-        AshPhoenix.Form.for_update(assigns.item, get_ash_action(live_resource, :update, assigns), opts)
+        {ash_action, action_args, action_opts} = get_ash_action(live_resource, :update, assigns)
+        action_opts = Keyword.put(opts, :params, action_args) |> Keyword.merge(action_opts)
+        AshPhoenix.Form.for_update(assigns.item, ash_action, action_opts)
     end
   end
 

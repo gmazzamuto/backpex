@@ -26,40 +26,46 @@ if Code.ensure_loaded?(Ash) do
       create_action: [
         doc: """
         The create action used for new items. If not specified, the primary `:create` action will be used. Can be an
-        atom or a function that takes the `assigns`.
+        atom or a tuple with action name, action arguments and action options, eg:
+        `{:create, %{my_argument: "value"}, []}`. It can also be a function that takes the `assigns`.
         """,
-        type: {:or, [:atom, {:fun, 1}]},
+        type: {:or, [:atom, {:tuple, [:atom, :map, :keyword_list]}, {:fun, 1}]},
         default: nil
       ],
       index_action: [
         doc: """
         The read action used for index views. If not specified, the primary `:read` action will be used. If a custom
         action is specified, that action needs to have offset pagination enabled (see
-        [Ash Pagination](https://hexdocs.pm/ash/pagination.html)). Can be an atom or a function that takes the `assigns`.
+        [Ash Pagination](https://hexdocs.pm/ash/pagination.html)). Can be an atom or a tuple with action name and action
+        arguments, eg: `{:read, %{my_argument: "value"}}`. It can also be a function that takes the `assigns`.
         """,
-        type: {:or, [:atom, {:fun, 1}]},
+        type: {:or, [:atom, {:tuple, [:atom, :map, :keyword_list]}, {:fun, 1}]},
         default: nil
       ],
       show_action: [
         doc: """
-        The read action used for show views. If not specified, the primary `:read` action will be used. Can be an atom
-        or a function that takes the `assigns`.
+        The read action used for show views. It is also used to load the initial data for edit views. If not specified,
+        the primary `:read` action will be used. Can be an atom or a tuple with action name and action arguments, eg:
+        `{:read, %{my_argument: "value"}}`. It can also be a function that takes the `assigns`.
         """,
-        type: {:or, [:atom, {:fun, 1}]},
+        type: {:or, [:atom, {:tuple, [:atom, :map, :keyword_list]}, {:fun, 1}]},
         default: nil
       ],
       update_action: [
         doc: """
-        The update action used for editing. If not specified, the primary `:update` action will be used. Can be an atom
-        or a function that takes the `assigns`.
+        The update action used for updating a resource on edit views. If not specified, the primary `:update` action
+        will be used. Can be an atom or a function that takes the `assigns`. Can be an atom or a tuple with action name
+        and action arguments, eg: `{:update, %{my_argument: "value"}}`. It can also be a function that takes the `assigns`.
         """,
         type: {:or, [:atom, {:fun, 1}]},
         default: nil
       ],
       destroy_action: [
-        doc:
-          "The destroy action used for deleting items. If not specified, the primary `:destroy` action will be used.",
-        type: :atom,
+        doc: """
+        The destroy action used for deleting items. If not specified, the primary `:destroy` action will be used. Can be
+        an atom or a tuple with action name and action arguments, eg: `{:destroy, %{my_argument: "value"}}`.
+        """,
+        type: {:or, [:atom, {:tuple, [:atom, :map, :keyword_list]}]},
         default: nil
       ]
     ]
@@ -91,11 +97,16 @@ if Code.ensure_loaded?(Ash) do
     Returns `nil` if no result was found.
     """
     @impl Backpex.Adapter
-    def get(primary_value, _fields, _assigns, live_resource) do
+    def get(primary_value, _fields, assigns, live_resource) do
       resource = live_resource.adapter_config(:resource)
       primary_key = live_resource.config(:primary_key)
 
+      {action, action_args, action_opts} = get_ash_action(live_resource, :show, assigns)
+
+      action_opts = Keyword.merge(get_actor_option(assigns), action_opts)
+
       resource
+      |> Ash.Query.for_read(action, action_args, action_opts)
       |> Ash.Query.filter(^Ash.Expr.ref(primary_key) == ^primary_value)
       |> Ash.read_one()
     end
@@ -121,9 +132,9 @@ if Code.ensure_loaded?(Ash) do
       %{size: limit, page: page} = criteria[:pagination]
 
       resource = live_resource.adapter_config(:resource)
-      action = get_ash_action(live_resource, :index, assigns)
+      {action, action_args, action_options} = get_ash_action(live_resource, :index, assigns)
 
-      read_options = get_actor_option(assigns)
+      action_options = Keyword.merge(get_actor_option(assigns), action_options)
 
       sort_options =
         case criteria[:order] do
@@ -132,16 +143,16 @@ if Code.ensure_loaded?(Ash) do
         end
 
       resource
-      |> Ash.Query.for_read(action, %{}, read_options)
+      |> Ash.Query.for_read(action, action_args, action_options)
       |> Ash.Query.sort(sort_options)
       |> apply_search(criteria[:search], live_resource)
       |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key(), assigns)
       |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
     end
 
-    @spec get_ash_action(atom(), :create | :index | :show | :update | :destroy, any()) :: any()
+    @spec get_ash_action(atom(), :create | :index | :show | :update | :destroy, any()) :: {atom(), map(), keyword()}
     @doc """
-    Return the Ash [action](https://hexdocs.pm/ash/actions.html) to use, determined in the following order:
+    Return the Ash [action](https://hexdocs.pm/ash/actions.html) (and arguments) to use, determined in the following order:
     1. the action specified in the `adapter_config`
     2. the corresponding primary action for the given Ash resource. `:index` and `:show` actions use the `read` action.
     """
@@ -155,10 +166,17 @@ if Code.ensure_loaded?(Ash) do
           action -> action
         end
 
-      case live_resource.adapter_config(action_key) do
-        nil -> if(action = Resource.Info.primary_action(resource, ash_action), do: action.name)
-        f when is_function(f, 1) -> f.(assigns)
-        action when is_atom(action) -> action
+      ash_action_and_args =
+        case live_resource.adapter_config(action_key) do
+          nil -> if(action = Resource.Info.primary_action(resource, ash_action), do: action.name)
+          f when is_function(f, 1) -> f.(assigns)
+          action when is_atom(action) -> action
+        end
+
+      case ash_action_and_args do
+        # with empty arguments
+        ash_action when is_atom(ash_action) -> {ash_action, %{}, []}
+        ash_action_and_args -> ash_action_and_args
       end
     end
 
@@ -240,12 +258,13 @@ if Code.ensure_loaded?(Ash) do
       primary_key = live_resource.config(:primary_key)
       ids = Enum.map(items, &Map.fetch!(&1, primary_key))
 
-      destroy_action = get_ash_action(live_resource, :destroy, "passing_assigns_not_supported")
+      {destroy_action, action_input, action_opts} =
+        get_ash_action(live_resource, :destroy, "passing assigns is not supported for delete actions")
 
       result =
         live_resource.adapter_config(:resource)
         |> Ash.Query.filter(^Ash.Expr.ref(primary_key) in ^ids)
-        |> Ash.bulk_destroy(destroy_action, %{}, return_records?: true)
+        |> Ash.bulk_destroy(destroy_action, action_input, Keyword.merge([return_records?: true], action_opts))
 
       {:ok, result.records}
     end
