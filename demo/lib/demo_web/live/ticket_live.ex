@@ -6,6 +6,8 @@ defmodule DemoWeb.TicketLive do
     ],
     layout: {DemoWeb.Layouts, :admin}
 
+  require Ash.Query
+
   @impl Backpex.LiveResource
   def singular_name, do: "Ticket"
 
@@ -108,6 +110,40 @@ defmodule DemoWeb.TicketLive do
             end
           }
         ]
+      }
+    ]
+  end
+
+  @impl Backpex.LiveResource
+  def metrics do
+    [
+      open_tickets: %{
+        module: Backpex.Metrics.Value,
+        label: "Open tickets",
+        class: "lg:w-1/4",
+        query: fn query ->
+          query
+          |> Ash.Query.filter(status == :open)
+          |> Ash.aggregate!({:count, :count})
+          |> Map.get(:count)
+        end,
+        format: fn value ->
+          Integer.to_string(value)
+        end
+      },
+      closed_tickets: %{
+        module: Backpex.Metrics.Value,
+        label: "Closed tickets",
+        class: "lg:w-1/4",
+        query: fn query ->
+          query
+          |> Ash.Query.filter(status == :closed)
+          |> Ash.aggregate!({:count, :count})
+          |> Map.get(:count)
+        end,
+        format: fn value ->
+          Integer.to_string(value)
+        end
       }
     ]
   end

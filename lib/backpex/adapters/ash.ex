@@ -128,9 +128,7 @@ if Code.ensure_loaded?(Ash) do
     end
 
     # Returns the main database query for selecting a list of items by given criteria.
-    defp list_query(criteria, %{live_resource: live_resource} = assigns) do
-      %{size: limit, page: page} = criteria[:pagination]
-
+    def list_query(criteria, %{live_resource: live_resource} = assigns) do
       resource = live_resource.adapter_config(:resource)
       {action, action_args, action_options} = get_ash_action(live_resource, :index, assigns)
 
@@ -147,7 +145,14 @@ if Code.ensure_loaded?(Ash) do
       |> Ash.Query.sort(sort_options)
       |> apply_search(criteria[:search], live_resource)
       |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key(), assigns)
-      |> Ash.Query.page(limit: limit, offset: limit * (page - 1), count: true)
+      |> apply_pagination(criteria[:pagination])
+    end
+
+    defp apply_pagination(query, nil), do: query
+
+    defp apply_pagination(query, pagination_criteria) do
+      %{size: limit, page: page} = pagination_criteria
+      Ash.Query.page(query, limit: limit, offset: limit * (page - 1), count: true)
     end
 
     @spec get_ash_action(atom(), :create | :index | :show | :update | :destroy, any()) :: {atom(), map(), keyword()}

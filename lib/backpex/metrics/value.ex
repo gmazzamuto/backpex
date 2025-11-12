@@ -7,7 +7,8 @@ defmodule Backpex.Metrics.Value do
 
     * `:module` - Defines the module to handle the metric.
     * `:label` - Label text to define a headline for the metric.
-    * `:select` - Dynamic query expression defining the column to select. This is usually an aggregate function.
+    * `:select` - For Ecto resources, dynamic query expression defining the column to select. This is usually an aggregate function.
+    * `:query` - For Ash resources, a function that takes the incoming query and returns the metric value.
     * `:format` - Optional format function to post-process the selected value from the database to display in frontend.
     * `:class` - Optional extra css classes to be passed to the metric box.
 
@@ -64,7 +65,12 @@ defmodule Backpex.Metrics.Value do
   Performs database select to query the value of the metric
   """
   @impl Backpex.Metric
-  def query(query, select, repo) do
+  def query(%Ash.Query{} = query, query_option_fn, nil) do
+    query_option_fn.(query)
+  end
+
+  @impl Backpex.Metric
+  def query(%Ecto.Query{} = query, select, repo) do
     query
     |> select(^select)
     |> repo.one()

@@ -5,6 +5,7 @@ defmodule Backpex.LiveResource.Index do
   import Phoenix.Component
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Adapters.Ash, as: AshAdapter
   alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.Router
@@ -581,17 +582,15 @@ defmodule Backpex.LiveResource.Index do
           filters: LiveResource.filter_options(query_options, filters)
         ]
 
-        query = EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)
+        query =
+          case live_resource.config(:adapter) do
+            EctoAdapter -> EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)
+            AshAdapter -> AshAdapter.list_query(criteria, socket.assigns)
+          end
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
-            data =
-              query
-              |> Ecto.Query.exclude(:select)
-              |> Ecto.Query.exclude(:preload)
-              |> Ecto.Query.exclude(:group_by)
-              |> metric.module.query(metric.select, repo)
-
+            data = get_metric_data(query, metric, repo)
             {key, Map.put(metric, :data, data)}
 
           _visible ->
@@ -601,5 +600,19 @@ defmodule Backpex.LiveResource.Index do
 
     socket
     |> assign(metrics: metrics)
+  end
+
+  defp get_metric_data(%Ecto.Query{} = query, metric, repo) do
+    query
+    |> Ecto.Query.exclude(:select)
+    |> Ecto.Query.exclude(:preload)
+    |> Ecto.Query.exclude(:group_by)
+    |> metric.module.query(metric.select, repo)
+  end
+
+  defp get_metric_data(%Ash.Query{} = query, metric, _repo) do
+    query
+    |> Ash.Query.unset([:select, :load])
+    |> metric.module.query(metric.query, nil)
   end
 end
