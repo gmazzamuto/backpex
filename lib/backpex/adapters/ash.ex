@@ -83,6 +83,20 @@ if Code.ensure_loaded?(Ash) do
 
     ## Search & filters
     Search and filters work on attributes marked as [`public?`](https://hexdocs.pm/ash/dsl-ash-resource.html#attributes-attribute-public?).
+
+    ## Validations
+
+    > ### A note on validations {: .warning}
+    >
+    > If you have computationally expensive [validations](https://hexdocs.pm/ash/validations.html), keep in mind that
+    > Backpex calls `Ash.can?/3` multiple times in the Index view to determine which actions the user is allowed to
+    > perform and to update the UI accordingly. Unfortunately, calling `Ash.can?/3` causes the `Ash.Changeset` to be
+    > validated, and this in turn causes your expensive validations to be run multiple times. This can result in a
+    > noticeable delay in the loading of the Index view. If your validation is not needed for the authorization logic,
+    > it can be skipped like this:
+    > ```elixir
+    > validate {MyExpensiveValidation, field: :my_field}, where: Backpex.NotAnAuthCheck
+    > ```
     """
 
     use Backpex.Adapter, config_schema: @config_schema

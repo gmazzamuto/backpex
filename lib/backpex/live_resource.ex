@@ -292,6 +292,13 @@ defmodule Backpex.LiveResource do
         {ash_action, action_args, action_opts} =
           Backpex.Adapters.Ash.get_ash_action(assigns.live_resource, action, assigns)
 
+        action_opts =
+          Keyword.put(
+            action_opts,
+            :context,
+            Map.merge(%{backpex_authorization_check: true}, action_opts[:context] || %{})
+          )
+
         resource = assigns.live_resource.adapter_config(:resource)
         info = Ash.Resource.Info.action(item || resource, ash_action)
 
