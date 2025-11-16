@@ -3,7 +3,8 @@ defmodule Demo.Helpdesk.Ticket do
 
   use Ash.Resource,
     domain: Demo.Helpdesk,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer]
 
   @status_options [:open, :closed]
 
@@ -31,6 +32,17 @@ defmodule Demo.Helpdesk.Ticket do
 
       argument :contact_details, {:array, :map}, allow_nil?: true
       change manage_relationship(:contact_details, type: :direct_control)
+    end
+  end
+
+  policies do
+    policy action_type(:destroy) do
+      authorize_if expr(status == :open)
+      description "Only open tickets can be deleted"
+    end
+
+    policy always() do
+      authorize_if always()
     end
   end
 
