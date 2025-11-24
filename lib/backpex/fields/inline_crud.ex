@@ -143,6 +143,32 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def render_form(assigns) do
+    nested_controls =
+      case assigns.live_resource.config(:adapter) do
+        Backpex.Adapters.Ecto ->
+          %{
+            delete_name: "change[#{assigns.name}_delete][]",
+            order_name: "change[#{assigns.name}_order][]",
+            order_value: nil,
+            ecto_resource?: true,
+            ash_resource?: false
+          }
+
+        Backpex.Adapters.Ash ->
+          %{
+            delete_name: "#{assigns.form.name}[_drop_#{assigns.name}][]",
+            order_name: "#{assigns.form.name}[_add_#{assigns.name}]",
+            order_value: "end",
+            ecto_resource?: false,
+            ash_resource?: true
+          }
+      end
+
+    assigns =
+      assigns
+      |> assign(:child_fields, assigns.field_options.child_fields)
+      |> assign(nested_controls)
+
     ~H"""
     <div>
       <Layout.field_container>
@@ -152,7 +178,14 @@ defmodule Backpex.Fields.InlineCRUD do
 
         <div class="flex flex-col">
           <.inputs_for :let={f_nested} field={@form[@name]}>
-            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} tabindex="-1" aria-hidden="true" />
+            <input
+              :if={@ecto_resource?}
+              type="hidden"
+              name={@order_name}
+              value={f_nested.index}
+              tabindex="-1"
+              aria-hidden="true"
+            />
 
             <div class="mb-3 flex items-start gap-x-4">
               <div
@@ -182,7 +215,7 @@ defmodule Backpex.Fields.InlineCRUD do
                   <input
                     id={"#{@name}-checkbox-delete-#{f_nested.index}"}
                     type="checkbox"
-                    name={"change[#{@name}_delete][]"}
+                    name={@delete_name}
                     value={f_nested.index}
                     class="hidden"
                   />
@@ -196,10 +229,11 @@ defmodule Backpex.Fields.InlineCRUD do
             </div>
           </.inputs_for>
 
-          <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
+          <input :if={@ecto_resource?} type="hidden" name={@delete_name} tabindex="-1" aria-hidden="true" />
         </div>
         <input
-          name={"change[#{@name}_order][]"}
+          name={@order_name}
+          value={@order_value}
           type="checkbox"
           aria-label={Backpex.__("Add entry", @live_resource)}
           class="btn btn-outline btn-sm btn-primary"
