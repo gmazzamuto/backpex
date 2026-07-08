@@ -404,32 +404,20 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :index, :actions) do
-        ~H"""
-        <.resource_buttons {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :index, :actions), do: resource_buttons(var!(assigns))
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :index, :filters) do
-        ~H"""
-        <.resource_filters search_placeholder={Backpex.__("Search", @live_resource)} {assigns} />
-        """
+        var!(assigns)
+        |> assign(search_placeholder: Backpex.__("Search", var!(assigns).live_resource))
+        |> resource_filters()
       end
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :index, :metrics) do
-        ~H"""
-        <.resource_metrics {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :index, :metrics), do: resource_metrics(var!(assigns))
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :index, :main) do
-        ~H"""
-        <.resource_index_main {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :index, :main), do: resource_index_main(var!(assigns))
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :show, :page_title) do
@@ -473,11 +461,7 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :show, :main) do
-        ~H"""
-        <.resource_show_main {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :show, :main), do: resource_show_main(var!(assigns))
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :edit, :page_title) do
@@ -498,18 +482,10 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :edit, :main) do
-        ~H"""
-        <.resource_form_main {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :edit, :main), do: resource_form_main(var!(assigns))
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :new, :main) do
-        ~H"""
-        <.resource_form_main {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :new, :main), do: resource_form_main(var!(assigns))
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), _action, _position), do: ~H""

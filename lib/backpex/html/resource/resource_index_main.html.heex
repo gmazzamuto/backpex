@@ -10,9 +10,9 @@
             current_url={@current_url}
             class="absolute top-2 right-6 z-20 flex justify-end pt-1 font-medium normal-case"
           />
-          <.resource_index_table {assigns} />
+          {resource_index_table(assigns)}
         <% else %>
-          <.empty_state {assigns} />
+          {empty_state(assigns)}
         <% end %>
       </div>
     </div>

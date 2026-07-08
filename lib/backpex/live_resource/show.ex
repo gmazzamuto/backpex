@@ -52,7 +52,9 @@ defmodule Backpex.LiveResource.Show do
   end
 
   def render(assigns) do
-    Backpex.HTML.Resource.resource_show(assigns)
+    assigns
+    |> assign(inner_block: [%{inner_block: Backpex.HTML.Resource.resource_show(assigns)}])
+    |> Backpex.HTML.Layout.layout()
   end
 
   defp assign_item(socket) do

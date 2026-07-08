@@ -40,7 +40,9 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def render(assigns) do
-    Backpex.HTML.Resource.resource_index(assigns)
+    assigns
+    |> assign(inner_block: [%{inner_block: Backpex.HTML.Resource.resource_index(assigns)}])
+    |> Backpex.HTML.Layout.layout()
   end
 
   def handle_info({"backpex:created", _item}, socket) do
